@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Vega-Lite implementation of https://demo.baremetrics.com/forecast chart</title>
+    <style type="text/css">
+        * {
+            border: 0;
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            align-items: center;
+            background-color: #f7f7fc;
+            display: flex;
+            font-family: avenir, proxima nova, helvetica neue, Helvetica, Arial, sans-serif;
+            height: 100vh;
+            justify-content: center;
+            width: 100vw;
+        }
+
+        #app {
+            background-color: #fff;
+            border-radius: 0.5rem;
+            box-shadow: 0 0 1rem black;
+            color: #b8b8d9;
+            display: grid;
+            /* @formatter:off */
+        grid: "summary period" 3rem
+              "summary graph"  1fr
+              "basedon graph" 3rem /
+               20rem   1fr;
+        /* @formatter:on */
+            grid-gap: 0 0.5rem;
+            height: 420px;
+            justify-content: space-between;
+            max-width: 75%;
+            min-width: 75rem;
+            padding: 2.25rem;
+        }
+
+        #basedon {
+            display: flex;
+            flex-flow: column;
+            font-size: .875rem;
+            grid-area: basedon;
+            justify-content: flex-end;
+        }
+
+        #graph {
+            grid-area: graph;
+        }
+
+        #period {
+            align-items: flex-start;
+            display: flex;
+            grid-area: period;
+            justify-content: flex-end;
+        }
+
+        #summary {
+            font-size: 1.125rem;
+            font-weight: 300;
+            grid-area: summary;
+            line-height: 1.6;
+        }
+
+        #summary h1 {
+            color: #7171a6;
+            font-size: 1.5rem;
+            font-weight: 300;
+            margin-bottom: .75rem;
+        }
+
+        #summary h2 {
+            align-items: center;
+            display: flex;
+            justify-content: space-between;
+            line-height: 1;
+            margin-bottom: .75rem;
+        }
+
+        #summary h2 > span:nth-child(1) {
+            font-size: 2.625rem;
+            font-weight: 600;
+        }
+
+        #summary h2 > span:nth-child(2) {
+            font-size: .875rem;
+        }
+
+        .black {
+            color: #33334f
+        }
+
+        .blue {
+            color: #6078ff
+        }
+
+        .green {
+            color: #12c457
+        }
+
+        .red {
+            color: #e84c85
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/vega@4.4.0/build/vega.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vega-lite@3.0.0-rc12/build/vega-lite.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vega-embed@3.29.1/build/vega-embed.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+</head>
+<body>
+<div id="app">
+    <aside id="summary">
+        <h1>{{summary.title}}</h1>
+        <h2>
+            <span class="blue">$1,169,849</span>
+            <span>Next {{summary.period}}</span>
+        </h2>
+        <p>
+            Over the next <strong class="blue">{{summary.period}}</strong>
+            you’ll bill about <strong class="green">$1,169,849</strong>
+            from <strong class="blue">{{summary.customers}}</strong> customers
+            or <strong class="green">$899,820</strong>
+            with a growth of <strong :class="summary.growth.color">{{summary.growth.amount}}</strong>
+            <br><em>(3 month average)</em>.
+        </p>
+    </aside>
+    <main id="graph" v-pre></main>
+    <label id="period">
+        <select name="forecast.period" v-model='forecast.period'>
+            <option value="daily">Daily</option>
+            <option value="weekly">Weekly</option>
+            <option value="monthly">Monthly</option>
+        </select>
+    </label>
+    <div id="basedon">
+        <label>
+            <input type="checkbox" v-model="forecast.basedOn.activeSubscriptions">
+            <span>Forecast based on <strong class="black">active subscriptions</strong></span>
+        </label>
+        <label>
+            <input type="checkbox" v-model="forecast.basedOn.revenueGrowth">
+            <span>Forecast based on <strong class="black">revenue growth</strong></span>
+        </label>
+    </div>
+</div>
+<script type="application/javascript">
+  new Vue({
+    el: '#app',
+    data () {
+      return {
+        cashflowForecast: {},
+        forecast: {
+          basedOn: {
+            activeSubscriptions: true,
+            revenueGrowth: false,
+          },
+          period: 'monthly'
+        }
+      }
+    },
+    computed: {
+      summary () {
+        const {
+          cashflow_graph: {customer_count, net_revenue_growth} = {},
+          stat_human
+        } = this.cashflowForecast
+        return {
+          customers: customer_count,
+          growth: {
+            amount: (net_revenue_growth / 100).toFixed(1) + '%',
+            color: net_revenue_growth > 0 ? 'green' : 'red'
+          },
+          period: this.forecast.period === 'daily' ?
+            '30 days' : this.forecast.period === 'weekly' ?
+              '26 weeks' : this.forecast.period === 'monthly' ?
+                '12 months' : '',
+          title: stat_human
+        }
+      }
+    },
+    async created () {
+      try {
+        // The data is pulled from https://demo.baremetrics.com/api/stats/cashflow_forecast.json
+        this.cashflowForecast = await (await fetch('data/cashflow_forecast.json')).json()
+        const vega = await vegaEmbed('#graph', 'src/spec.json')
+        const {clientHeight, clientWidth} = vega.view.container()
+        vega.view.height(clientHeight).width(clientWidth).run()
+      } catch (error) {
+        console.error(error)
+      }
+    },
+    methods: {
+      normalizeData (cashflowForecast) {
+        // That's how data/cashflow_forecast.normalized.json is obtained
+        const {cashflow_graph: {axis: {x}, intervals: {30: monthly, 365: yearly}}} = cashflowForecast
+        const normalizedData = []
+        for (let i = 0; i < x.length; i++) {
+          const date = new Date(x[i])
+          normalizedData.push({amount: monthly[i], date, type: 'monthly'})
+          normalizedData.push({amount: yearly[i], date, type: 'yearly'})
+        }
+        return normalizedData
+      }
+    }
+  })
+</script>
+</body>
+</html>

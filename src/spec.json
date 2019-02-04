@@ -1,0 +1,89 @@
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v3.json",
+  "autosize": {
+    "contains": "padding",
+    "type": "fit"
+  },
+  "config": {
+    "style": {
+      "cell": {
+        "stroke": "transparent"
+      }
+    }
+  },
+  "data": {
+    "name": "cashflow_forecast",
+    "url": "data/cashflow_forecast.normalized.json"
+  },
+  "layer": [
+    {
+      "encoding": {
+        "color": {
+          "field": "type",
+          "legend": null,
+          "scale": {
+            "domain": [
+              "monthly",
+              "yearly"
+            ],
+            "range": [
+              "#724ce9",
+              "#36bedf"
+            ]
+          },
+          "type": "nominal"
+        },
+        "x": {
+          "axis": {
+            "domain": false,
+            "format": "%b %e",
+            "labelAngle": 0,
+            "labelColor": "#33334f",
+            "labelFontSize": 14,
+            "labelFontWeight": 600,
+            "labelPadding": 7,
+            "ticks": false,
+            "title": null
+          },
+          "field": "date",
+          "timeUnit": "yearmonth",
+          "type": "ordinal"
+        },
+        "y": {
+          "aggregate": "sum",
+          "axis": {
+            "domain": false,
+            "format": "$,d",
+            "gridOpacity": 0.5,
+            "labelColor": "#b8b8d9",
+            "labelFontSize": 15,
+            "labelFontWeight": 300,
+            "labelPadding": 15,
+            "ticks": false,
+            "title": null
+          },
+          "field": "amount",
+          "type": "quantitative"
+        }
+      },
+      "mark": "bar",
+      "transform": [
+        {
+          "filter": {
+            "field": "date",
+            "range": [
+              {
+                "month": 2,
+                "year": 2019
+              },
+              {
+                "month": 2,
+                "year": 2020
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
